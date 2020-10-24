@@ -1,0 +1,54 @@
+name: Publish
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-github:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+
+      - name: Setup GitHub Package Registry credentials
+        run: |
+          mkdir -p $HOME/.gem
+          touch $HOME/.gem/credentials
+          chmod 0600 $HOME/.gem/credentials
+          printf -- "---\n:github: Bearer ${{ secrets.GITHUB_TOKEN }}\n" > $HOME/.gem/credentials
+
+      - name: Replace version by tag value
+        run: sed -i "s/'[0-9]\.[0-9]\..*'/'${GITHUB_REF##*/}'/" lib/keypairs/version.rb
+
+      - name: Build and Publish gem to GitHub Package Registry
+        run: |
+          gem build --verbose *.gemspec
+          gem push --verbose --key github --host https://rubygems.pkg.github.com/${OWNER} *.gem
+        env:
+          OWNER: Drieam
+
+  publish-rubygems:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+
+      - name: Replace version by tag value
+        run: sed -i "s/'[0-9]\.[0-9]\..*'/'${GITHUB_REF##*/}'/" lib/keypairs/version.rb
+
+      - name: Publish to RubyGems
+        run: |
+          mkdir -p $HOME/.gem
+          touch $HOME/.gem/credentials
+          chmod 0600 $HOME/.gem/credentials
+          printf -- "---\n:rubygems_api_key: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
+          gem build --verbose *.gemspec
+          gem push --verbose *.gem
+        env:
+          GEM_HOST_API_KEY: ${{secrets.RUBYGEMS_AUTH_TOKEN}}

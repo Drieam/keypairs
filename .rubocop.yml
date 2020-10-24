@@ -1,0 +1,30 @@
+require:
+  - rubocop-performance # Performance optimization analysis
+  - rubocop-rails # Rails-specific analysis
+
+AllCops:
+  TargetRubyVersion: 2.5
+  NewCops: enable
+  Exclude:
+    - 'tmp/**/*'
+    - 'vendor/**/*'
+
+# A top class comment is not needed everywhere.
+Style/Documentation:
+  Enabled: true
+  Exclude:
+    - 'db/migrate/*.rb'
+
+# We just use ActiveRecord::Base since we have 1 model only
+Rails/ApplicationRecord:
+  Enabled: false
+
+# We like our specs to use the {} syntax
+Lint/AmbiguousBlockAssociation:
+  Exclude:
+    - 'spec/**/*.rb'
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*.rb' # Specs just have large blocks
+    - '*.gemspec'    # Is just one block
