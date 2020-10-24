@@ -36,4 +36,4 @@ jobs:
         run: bundle install
 
       - name: Run RSpec
-        run: bundle exec rspec
+        run: bundle exec rspec --format RSpec::Github::Formatter
