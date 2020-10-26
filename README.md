@@ -12,6 +12,8 @@ gem 'keypairs'
 
 The of course run `bundle install` and run the migrations `bundle exec rake db:migrate`. The migrations from the gem run automatically.
 
+The private keys are encrypted with the [lockbox](https://github.com/ankane/lockbox) gem. In order for this to work, you need to set the master key as described in [the readme](https://github.com/ankane/lockbox#key-generation), but the easiest thing is to set the environment variable `LOCKBOX_MASTER_KEY` to a sufficient long string (you can generate one with `Lockbox.generate_key`).
+
 ## Usage
 The central point of this gem is the `Keypair` model which is backed by the `keypairs` table. If you need to sign messages, you can get the current keypair with the `Keypair.current` method. This method performs the rotation of the keypairs if required.
 

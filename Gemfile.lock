@@ -4,8 +4,8 @@ PATH
     keypairs (0.1.0.develop)
       actionpack (>= 6.0)
       activerecord (>= 6.0)
-      attr_encrypted (~> 3.1)
       jwt (~> 2.1)
+      lockbox (~> 0.4)
 
 GEM
   remote: https://rubygems.org/
@@ -35,8 +35,6 @@ GEM
       tzinfo (~> 1.1)
       zeitwerk (~> 2.2, >= 2.2.2)
     ast (2.4.1)
-    attr_encrypted (3.1.0)
-      encryptor (~> 3.0.0)
     brakeman (4.10.0)
     builder (3.2.4)
     combustion (1.3.1)
@@ -50,11 +48,11 @@ GEM
       activerecord
       database_cleaner (~> 1.8.0)
     diff-lcs (1.4.4)
-    encryptor (3.0.0)
     erubi (1.9.0)
     i18n (1.8.5)
       concurrent-ruby (~> 1.0)
     jwt (2.2.2)
+    lockbox (0.4.9)
     loofah (2.7.0)
       crass (~> 1.0.2)
       nokogiri (>= 1.5.9)

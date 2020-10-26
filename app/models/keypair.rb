@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'attr_encrypted'
+require 'lockbox'
 require 'jwt'
 
 # This class contains functionality needed for signing messages
@@ -23,8 +23,9 @@ require 'jwt'
 # @attr [String] jwk_kid The public external id of the key used to find the associated key on decoding.
 class Keypair < ActiveRecord::Base
   ALGORITHM = 'RS256'
+  ROTATION_INTERVAL = 1.month
 
-  attr_encrypted :_keypair, key: Rails.application.secrets.secret_key_base[0, 32]
+  encrypts :_keypair
 
   validates :_keypair, presence: true
   validates :jwk_kid, presence: true

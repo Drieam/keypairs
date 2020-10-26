@@ -4,8 +4,7 @@ RSpec.describe Keypair, type: :model do
   describe 'database' do
     it { is_expected.to have_db_column(:id).of_type(:integer).with_options(null: false) }
     it { is_expected.to have_db_column(:jwk_kid).of_type(:string).with_options(null: false) }
-    it { is_expected.to have_db_column(:encrypted__keypair).of_type(:string).with_options(null: false) }
-    it { is_expected.to have_db_column(:encrypted__keypair_iv).of_type(:string).with_options(null: false) }
+    it { is_expected.to have_db_column(:_keypair_ciphertext).of_type(:text).with_options(null: false) }
     it { is_expected.to have_db_column(:created_at).of_type(:datetime).with_options(null: false, precision: 6) }
     it { is_expected.to have_db_column(:updated_at).of_type(:datetime).with_options(null: false, precision: 6) }
     it { is_expected.to have_db_index(:created_at) }
@@ -15,7 +14,7 @@ RSpec.describe Keypair, type: :model do
   describe 'settings' do
     it { expect(described_class::ALGORITHM).to eq 'RS256' }
     it { is_expected.to be_a(ActiveRecord::Base) }
-    it { is_expected.to have_attr_encrypted(:_keypair) }
+    it { is_expected.to encrypt_attribute(:_keypair) }
   end
 
   describe 'validations' do

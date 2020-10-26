@@ -27,6 +27,8 @@ Dir[File.join(File.dirname(__FILE__), 'support', '**', '*.rb')].sort.each { |f| 
 
 require 'keypairs'
 
+Lockbox.master_key = Lockbox.generate_key
+
 RSpec.configure do |config|
   config.use_transactional_fixtures = true
 
