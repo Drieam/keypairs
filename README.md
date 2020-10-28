@@ -4,15 +4,28 @@ Applications often need to have a public/private keypair so sign messages. This 
 Note: This gem is intended to work within Rails applications. It can probably be adjusted easily to also work for non-rails / sinatra project but that's out of scope for now. 
 
 ## Installation
-Add this line to your application's Gemfile:
+1. **Add gem**
 
-```ruby
-gem 'keypairs'
-```
+   Add this line to your application's Gemfile:
+   
+   ```ruby
+   gem 'keypairs'
+   ```
+   
+   The of course run `bundle install`. 
 
-The of course run `bundle install` and run the migrations `bundle exec rake db:migrate`. The migrations from the gem run automatically.
+2. **Copy migration**
 
-The private keys are encrypted with the [lockbox](https://github.com/ankane/lockbox) gem. In order for this to work, you need to set the master key as described in [the readme](https://github.com/ankane/lockbox#key-generation), but the easiest thing is to set the environment variable `LOCKBOX_MASTER_KEY` to a sufficient long string (you can generate one with `Lockbox.generate_key`).
+   The default migration file can be copied to your app with:
+   ```bash
+   bundle exec rails keypairs:install:migrations
+   ```
+   
+   Then of course run `bundle exec rails db:migrate`
+
+3. **Setup encryption key**
+
+   The private keys are encrypted with the [lockbox](https://github.com/ankane/lockbox) gem. In order for this to work, you need to set the master key as described in [the readme](https://github.com/ankane/lockbox#key-generation), but the easiest thing is to set the environment variable `LOCKBOX_MASTER_KEY` to a sufficient long string (you can generate one with `Lockbox.generate_key`).
 
 ## Usage
 The central point of this gem is the `Keypair` model which is backed by the `keypairs` table. If you need to sign messages, you can get the current keypair with the `Keypair.current` method. This method performs the rotation of the keypairs if required.

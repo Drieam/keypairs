@@ -1,15 +1,5 @@
 # frozen_string_literal: true
 
-# require "bundler/setup"
-# require "keypair"
-#
-# RSpec.configure do |config|
-#   # Enable flags like --only-failures and --next-failure
-#   config.example_status_persistence_file_path = ".rspec_status"
-#
-
-# end
-
 ENV['RAILS_ENV'] ||= 'test'
 
 require 'bundler/setup'
