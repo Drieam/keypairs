@@ -6,8 +6,18 @@ require 'jwt'
 # This class contains functionality needed for signing messages
 # and publishing JWK[s].
 #
-# The last three created keypairs are considered valid, so creating a new Keypair
-# will invalidate the second to last created Keypair.
+# Keypairs are considered valid based on their {#not_before}, {#not_after} and {#expires_at} attributes.
+#
+# A keypair can be used for signing if:
+# - The current time is greater than or equal to {#not_before}
+# - The current time is less than or equal to {#not_after}
+#
+# A keypair can be used for validation if:
+# - The current time is less than {#expires_at}.
+#
+# By default, this means that when a key is created, it can be used for signing for 1 month and can still be used
+# for signature validation 1 month after it is not used for signing (i.e. for 2 months since it started being used
+# for signing).
 #
 # If you need to sign messages, use the {Keypair.current} keypair for this. This method
 # performs the rotation of the keypairs if required.
@@ -21,6 +31,9 @@ require 'jwt'
 #   decoded = Keypair.jwt_decode(id_token)
 #
 # @attr [String] jwk_kid The public external id of the key used to find the associated key on decoding.
+# @attr [Time] not_before The time before which no payloads may be signed using the keypair.
+# @attr [Time] not_after The time after which no payloads may be signed using the keypair.
+# @attr [Time] expires_at The time after which the keypair may not be used for signature validation.
 class Keypair < ActiveRecord::Base
   ALGORITHM = 'RS256'
   ROTATION_INTERVAL = 1.month
@@ -29,18 +42,23 @@ class Keypair < ActiveRecord::Base
 
   validates :_keypair, presence: true
   validates :jwk_kid, presence: true
+  validates :not_before, :expires_at, presence: true
+
+  validate :not_after_after_not_before
+  validate :expires_at_after_not_after
 
   after_initialize :set_keypair
+  after_initialize :set_validity
 
   # @!method valid
   #   @!scope class
-  #   The last 3 keypairs are considered valid and can be used to validate signatures and export public jwks.
-  #   It uses a subquery to make sure a +find_by+ actually searches only the valid 3 ones.
-  scope :valid, -> { where(id: unscoped.order(created_at: :desc).limit(3)) }
+  #   Non-expired keypairs are considered valid and can be used to validate signatures and export public jwks.
+  #   It uses a subquery to make sure a +find_by+ actually searches only the non-expired ones.
+  scope :valid, -> { where(id: unscoped.where('? < expires_at', Time.zone.now)) }
 
-  # @return [Keypair] the keypair used to sign messages and autorotates if it is older than 1 month.
+  # @return [Keypair] the keypair used to sign messages and autorotates if it has expired.
   def self.current
-    order(:created_at).where(arel_table[:created_at].gt(1.month.ago)).last || create!
+    order(not_before: :asc).where('not_before <= ? AND ? <= not_after', Time.zone.now, Time.zone.now).last || create!
   end
 
   # The JWK Set of our valid keypairs.
@@ -66,9 +84,24 @@ class Keypair < ActiveRecord::Base
   #
   # @see https://www.imsglobal.org/spec/security/v1p0/#h_key-set-url
   def self.keyset
+    valid_keys = valid.order(expires_at: :asc).to_a
+    # If we don't have any keys or if we don't have a future key (i.e. the last key is the current key)
+    if valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
+      # There is an automatic fallback to Time.zone.now if not_before is not set
+      valid_keys << create!(not_before: valid_keys.last&.not_after)
+    end
+
     {
-      keys: valid.order(created_at: :desc).map(&:public_jwk_export)
+      keys: valid_keys.map(&:public_jwk_export)
     }
+  end
+
+  # @return [Hash] a cached version of the keyset
+  # @see #keyset
+  def self.cached_keyset
+    Rails.cache.fetch('keypairs/Keypair/keyset', expires_in: 12.hours) do
+      keyset
+    end
   end
 
   # Encodes the payload with the current keypair.
@@ -172,5 +205,26 @@ class Keypair < ActiveRecord::Base
     # The generated keypair is stored in PEM encoding.
     self._keypair ||= OpenSSL::PKey::RSA.new(2048).to_pem
     self.jwk_kid = public_jwk.kid
+  end
+
+  # Set the validity timestamps based on the rotation interval.
+  def set_validity
+    self.not_before ||= created_at || Time.zone.now
+    self.not_after ||= not_before + ROTATION_INTERVAL
+    self.expires_at ||= not_after + ROTATION_INTERVAL
+  end
+
+  def not_after_after_not_before
+    return if not_before.nil? || not_after.nil?
+    return if not_after > not_before
+
+    errors.add(:not_after, 'must be after not before')
+  end
+
+  def expires_at_after_not_after
+    return if not_after.nil? || expires_at.nil?
+    return if expires_at > not_after
+
+    errors.add(:expires_at, 'must be after not after')
   end
 end
