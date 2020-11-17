@@ -2,16 +2,17 @@
 
 RSpec.describe Keypairs::PublicKeysController, type: :request do
   context 'GET #index' do
-    let!(:keypair1) { Keypair.create(created_at: 4.days.ago) }
-    let!(:keypair2) { Keypair.create(created_at: 3.days.ago) }
-    let!(:keypair3) { Keypair.create(created_at: 2.days.ago) }
-    let!(:keypair4) { Keypair.create(created_at: 1.day.ago) }
+    let!(:keypair1) { Keypair.create(created_at: 14.weeks.ago) }
+    let!(:keypair2) { Keypair.create(created_at: 10.weeks.ago) }
+    let!(:keypair3) { Keypair.create(created_at: 6.weeks.ago) }
+    let!(:keypair4) { Keypair.create(created_at: 2.weeks.ago) }
+    let(:created_keypair) { Keypair.unscoped.last }
 
     before { get '/jwks' }
 
-    it 'renders the public exports of valid keys (the last three)' do
+    it 'renders the public exports of valid keys' do
       expect(response.body).to eq({
-        keys: [keypair4, keypair3, keypair2].map(&:public_jwk_export)
+        keys: [keypair3, keypair4, created_keypair].map(&:public_jwk_export)
       }.to_json)
     end
 
@@ -25,9 +26,8 @@ RSpec.describe Keypairs::PublicKeysController, type: :request do
     #
     # NOTE: Be carefull with enabeling this, since if we rotate a key, it's not valid immediately!
     #
-    # it 'sets the expiry headers' do
-    #   get :index, format: :json
-    #   expect(response.headers['Cache-Control']).to eq("max-age=#{1.week.to_i}, public")
-    # end
+    it 'sets the expiry headers' do
+      expect(response.headers['Cache-Control']).to eq("max-age=#{1.week.to_i}, public")
+    end
   end
 end

@@ -5,6 +5,8 @@ RSpec.describe Keypair, type: :model do
     it { is_expected.to have_db_column(:id).of_type(:integer).with_options(null: false) }
     it { is_expected.to have_db_column(:jwk_kid).of_type(:string).with_options(null: false) }
     it { is_expected.to have_db_column(:_keypair_ciphertext).of_type(:text).with_options(null: false) }
+    it { is_expected.to have_db_column(:not_before).of_type(:datetime).with_options(null: true, precision: 6) }
+    it { is_expected.to have_db_column(:expires_at).of_type(:datetime).with_options(null: true, precision: 6) }
     it { is_expected.to have_db_column(:created_at).of_type(:datetime).with_options(null: false, precision: 6) }
     it { is_expected.to have_db_column(:updated_at).of_type(:datetime).with_options(null: false, precision: 6) }
     it { is_expected.to have_db_index(:created_at) }
@@ -13,6 +15,7 @@ RSpec.describe Keypair, type: :model do
 
   describe 'settings' do
     it { expect(described_class::ALGORITHM).to eq 'RS256' }
+    it { expect(described_class::ROTATION_INTERVAL).to eq 1.month }
     it { is_expected.to be_a(ActiveRecord::Base) }
     it { is_expected.to encrypt_attribute(:_keypair) }
   end
@@ -20,6 +23,20 @@ RSpec.describe Keypair, type: :model do
   describe 'validations' do
     it { is_expected.to validate_presence_of(:_keypair) }
     it { is_expected.to validate_presence_of(:jwk_kid) }
+    it { is_expected.to validate_presence_of(:not_before) }
+    it { is_expected.to validate_presence_of(:expires_at) }
+
+    it 'should not allow not_before to be after not_after' do
+      subject = described_class.new(not_before: 10.days.from_now, not_after: 5.days.from_now)
+      expect(subject).to_not be_valid
+      expect(subject.errors.to_hash).to eq(not_after: ['must be after not before'])
+    end
+
+    it 'should not allow not_after to be after expires_at' do
+      subject = described_class.new(not_after: 10.days.from_now, expires_at: 5.days.from_now)
+      expect(subject).to_not be_valid
+      expect(subject.errors.to_hash).to eq(expires_at: ['must be after not after'])
+    end
   end
 
   describe 'callbacks' do
@@ -56,24 +73,55 @@ RSpec.describe Keypair, type: :model do
         expect { subject.reload }.not_to change { subject.jwk_kid }
       end
     end
+
+    describe '#set_validity', timecop: :freeze do
+      it { expect(subject.not_before).to eq Time.zone.now.floor(6) }
+      it { expect(subject.not_after).to eq 1.month.from_now.floor(6) }
+      it { expect(subject.expires_at).to eq 2.months.from_now.floor(6) }
+
+      it 'does not change not_before after persisting' do
+        expect { subject.save! }.not_to change { subject.not_before }
+      end
+
+      it 'does not change not_after after persisting' do
+        expect { subject.save! }.not_to change { subject.not_after }
+      end
+
+      it 'does not change expires_at after persisting' do
+        expect { subject.save! }.not_to change { subject.expires_at }
+      end
+
+      it 'does not change not_before after reloading' do
+        subject.save
+        expect { subject.reload }.not_to change { subject.not_before }
+      end
+
+      it 'does not change not_after after reloading' do
+        subject.save
+        expect { subject.reload }.not_to change { subject.not_after }
+      end
+
+      it 'does not change expires_at after reloading' do
+        subject.save
+        expect { subject.reload }.not_to change { subject.expires_at }
+      end
+    end
   end
 
-  describe 'scopes' do
+  describe 'scopes', timecop: :freeze do
     describe '.valid' do
-      it 'returns the last three keys' do
-        subquery = described_class.unscoped.order(created_at: :desc).limit(3)
-        last_three = described_class.where(id: subquery)
-        expect(described_class.valid.to_sql).to eq(last_three.to_sql)
+      it 'returns the non-expired keys' do
+        non_expired = described_class.unscoped.where(described_class.arel_table[:expires_at].gt(Time.zone.now))
+        expect(described_class.valid.to_sql).to eq(non_expired.to_sql)
       end
       it 'works with find_by' do
-        keypairs = Array.new(4) { described_class.create! }
-        invalid = keypairs.min_by(&:created_at)
+        keypairs = Array.new(4) { |i| described_class.create! not_before: i.months.ago }
+        invalid = keypairs.min_by(&:expires_at)
         expect(described_class.valid.where(id: invalid.id)).to be_empty
       end
       it 'works with order' do
-        subquery = described_class.unscoped.order(created_at: :desc).limit(3)
-        last_three = described_class.where(id: subquery).order(:id)
-        expect(described_class.order(:id).valid.to_sql).to eq(last_three.to_sql)
+        non_expired = described_class.unscoped.where(described_class.arel_table[:expires_at].gt(Time.zone.now)).order(:id)
+        expect(described_class.order(:id).valid.to_sql).to eq(non_expired.to_sql)
       end
     end
   end
@@ -93,7 +141,7 @@ RSpec.describe Keypair, type: :model do
         let!(:keypair1) { described_class.create!(created_at: 2.weeks.ago) }
         let!(:keypair2) { described_class.create!(created_at: 6.weeks.ago) }
         let!(:keypair3) { described_class.create!(created_at: 10.weeks.ago) }
-        it 'returns the latest' do
+        it 'returns the currently valid one' do
           expect(described_class.current).to eq keypair1
         end
       end
@@ -113,27 +161,87 @@ RSpec.describe Keypair, type: :model do
     describe '.keyset' do
       subject { described_class.keyset }
 
-      context 'with keypairs' do
-        let!(:keypair1) { described_class.create(created_at: 8.minutes.ago) }
-        let!(:keypair2) { described_class.create(created_at: 7.minutes.ago) }
-        let!(:keypair3) { described_class.create(created_at: 11.minutes.ago) }
-        let!(:keypair4) { described_class.create(created_at: 10.minutes.ago) }
+      context 'with past and present keypairs' do
+        let!(:keypair1) { described_class.create(created_at: 15.weeks.ago) }
+        let!(:keypair2) { described_class.create(created_at: 11.weeks.ago) }
+        let!(:keypair3) { described_class.create(created_at: 7.weeks.ago) }
+        let!(:keypair4) { described_class.create(created_at: 3.weeks.ago) }
+        let(:created_keypair) { described_class.unscoped.last }
 
         let(:expected) do
           [
-            keypair2.public_jwk_export,
-            keypair1.public_jwk_export,
-            keypair4.public_jwk_export
+            keypair3.public_jwk_export,
+            keypair4.public_jwk_export,
+            created_keypair.public_jwk_export
           ]
         end
 
-        it 'contains the public_jwk_export of only the last three keypairs' do
+        it 'creates a new future keypair' do
+          expect { described_class.keyset }.to change { described_class.count }.by(1)
+        end
+
+        it 'creates the new keypair for the correct time', timecop: :freeze do
+          described_class.keyset
+          expect(created_keypair.not_before).to eq (3.weeks.ago + 1.month).floor(6)
+          expect(created_keypair.not_after).to eq (3.weeks.ago + 2.months).floor(6)
+          expect(created_keypair.expires_at).to eq (3.weeks.ago + 3.months).floor(6)
+        end
+
+        it 'contains the public_jwk_export of only the valid keypairs' do
+          expect(subject[:keys]).to eq(expected)
+        end
+      end
+
+      context 'with past, present and future keypairs' do
+        let!(:keypair1) { described_class.create(created_at: 15.weeks.ago) }
+        let!(:keypair2) { described_class.create(created_at: 11.weeks.ago) }
+        let!(:keypair3) { described_class.create(created_at: 7.weeks.ago) }
+        let!(:keypair4) { described_class.create(created_at: 3.weeks.ago) }
+        let!(:keypair5) { described_class.create(not_before: 1.week.from_now) }
+
+        let(:expected) do
+          [
+            keypair3.public_jwk_export,
+            keypair4.public_jwk_export,
+            keypair5.public_jwk_export
+          ]
+        end
+
+        it 'does not create a new future keypair' do
+          expect { described_class.keyset }.to_not change { described_class.count }
+        end
+
+        it 'contains the public_jwk_export of only the valid keypairs' do
           expect(subject[:keys]).to eq(expected)
         end
       end
 
       context 'without keypairs' do
-        it { expect(subject[:keys]).to eq([]) }
+        let(:created_keypair) { described_class.unscoped.last }
+
+        it 'creates a new keypair' do
+          expect { described_class.keyset }.to change { described_class.count }.by(1)
+        end
+
+        it 'creates the new keypair for the correct time', timecop: :freeze do
+          described_class.keyset
+          expect(created_keypair.not_before).to eq Time.zone.now.floor(6)
+          expect(created_keypair.not_after).to eq 1.month.from_now.floor(6)
+          expect(created_keypair.expires_at).to eq 2.months.from_now.floor(6)
+        end
+
+        it 'contains the public_jwk_export of the newly created keypair' do
+          expect(subject[:keys]).to eq([created_keypair.public_jwk_export])
+        end
+      end
+    end
+
+    describe '.cached_keyset' do
+      it 'caches the result', timecop: :freeze do
+        test_keyset = { foo: 'bar' }
+        expect(described_class).to receive(:keyset).and_return(test_keyset)
+        expect(Rails.cache).to receive(:fetch).with('keypairs/Keypair/keyset', expires_in: 12.hours).and_call_original
+        expect(described_class.cached_keyset).to eq(test_keyset)
       end
     end
 
@@ -229,15 +337,15 @@ RSpec.describe Keypair, type: :model do
         end
       end
       context 'for id_token signed with older but valid keypair' do
-        let!(:keypairs) { Array.new(3) { described_class.create! } }
-        let!(:keypair) { keypairs.min_by(&:created_at) }
+        let!(:keypairs) { Array.new(3) { |i| described_class.create! not_before: (i - 1).months.ago } }
+        let!(:keypair) { keypairs.min_by(&:expires_at) }
         it 'retuns the payload' do
           expect(subject).to eq payload
         end
       end
       context 'for id_token signed with expired keypair' do
-        let!(:keypairs) { Array.new(5) { described_class.create! } }
-        let!(:keypair) { keypairs.min_by(&:created_at) }
+        let!(:keypairs) { Array.new(5) { |i| described_class.create! not_before: i.months.ago } }
+        let!(:keypair) { keypairs.min_by(&:expires_at) }
         it 'raises an decode error' do
           expect { subject }.to raise_error JWT::DecodeError
         end

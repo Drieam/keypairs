@@ -39,4 +39,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rubocop-rails'                  # Linter for Rails-specific analysis
   spec.add_development_dependency 'shoulda-matchers'               # RSpec matchers
   spec.add_development_dependency 'sqlite3'                        # Database adapter
+  spec.add_development_dependency 'timecop'                        # Freeze time to test time-dependent code
 end

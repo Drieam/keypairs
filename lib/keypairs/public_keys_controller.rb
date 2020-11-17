@@ -18,7 +18,9 @@ module Keypairs
   #  }
   class PublicKeysController < ActionController::API
     def index
-      render json: Keypair.keyset
+      # Always cache for 1 week, our rotation interval is much more than a week
+      expires_in 1.week, public: true
+      render json: Keypair.cached_keyset
     end
   end
 end
