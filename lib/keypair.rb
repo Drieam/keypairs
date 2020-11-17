@@ -53,12 +53,11 @@ class Keypair < ActiveRecord::Base
   # @!method valid
   #   @!scope class
   #   Non-expired keypairs are considered valid and can be used to validate signatures and export public jwks.
-  #   It uses a subquery to make sure a +find_by+ actually searches only the non-expired ones.
-  scope :valid, -> { where(id: unscoped.where('? < expires_at', Time.zone.now)) }
+  scope :valid, -> { where(arel_table[:expires_at].gt(Time.zone.now)) }
 
   # @return [Keypair] the keypair used to sign messages and autorotates if it has expired.
   def self.current
-    order(not_before: :asc).where('not_before <= ? AND ? <= not_after', Time.zone.now, Time.zone.now).last || create!
+    order(not_before: :asc).where(arel_table[:not_before].lteq(Time.zone.now)).where(arel_table[:not_after].gteq(Time.zone.now)).last || create!
   end
 
   # The JWK Set of our valid keypairs.

@@ -110,10 +110,9 @@ RSpec.describe Keypair, type: :model do
 
   describe 'scopes', timecop: :freeze do
     describe '.valid' do
-      it 'returns the last three keys' do
-        subquery = described_class.unscoped.where('? < expires_at', Time.zone.now)
-        last_three = described_class.where(id: subquery)
-        expect(described_class.valid.to_sql).to eq(last_three.to_sql)
+      it 'returns the non-expired keys' do
+        non_expired = described_class.unscoped.where(described_class.arel_table[:expires_at].gt(Time.zone.now))
+        expect(described_class.valid.to_sql).to eq(non_expired.to_sql)
       end
       it 'works with find_by' do
         keypairs = Array.new(4) { |i| described_class.create! not_before: i.months.ago }
@@ -121,9 +120,8 @@ RSpec.describe Keypair, type: :model do
         expect(described_class.valid.where(id: invalid.id)).to be_empty
       end
       it 'works with order' do
-        subquery = described_class.unscoped.where('? < expires_at', Time.zone.now)
-        last_three = described_class.where(id: subquery).order(:id)
-        expect(described_class.order(:id).valid.to_sql).to eq(last_three.to_sql)
+        non_expired = described_class.unscoped.where(described_class.arel_table[:expires_at].gt(Time.zone.now)).order(:id)
+        expect(described_class.order(:id).valid.to_sql).to eq(non_expired.to_sql)
       end
     end
   end
