@@ -120,7 +120,9 @@ RSpec.describe Keypair, type: :model do
         expect(described_class.valid.where(id: invalid.id)).to be_empty
       end
       it 'works with order' do
-        non_expired = described_class.unscoped.where(described_class.arel_table[:expires_at].gt(Time.zone.now)).order(:id)
+        non_expired = described_class.unscoped
+                                     .where(described_class.arel_table[:expires_at].gt(Time.zone.now))
+                                     .order(:id)
         expect(described_class.order(:id).valid.to_sql).to eq(non_expired.to_sql)
       end
     end

@@ -57,7 +57,10 @@ class Keypair < ActiveRecord::Base
 
   # @return [Keypair] the keypair used to sign messages and autorotates if it has expired.
   def self.current
-    order(not_before: :asc).where(arel_table[:not_before].lteq(Time.zone.now)).where(arel_table[:not_after].gteq(Time.zone.now)).last || create!
+    order(not_before: :asc)
+      .where(arel_table[:not_before].lteq(Time.zone.now))
+      .where(arel_table[:not_after].gteq(Time.zone.now))
+      .last || create!
   end
 
   # The JWK Set of our valid keypairs.
