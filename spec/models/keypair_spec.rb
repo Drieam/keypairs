@@ -251,6 +251,19 @@ RSpec.describe Keypair, type: :model do
           expect(subject[:keys]).to eq(expected)
         end
       end
+
+      context 'with manual validity period on current keypair' do
+        let!(:keypair1) { described_class.create(not_after: 10.years.from_now, expires_at: 20.years.from_now) }
+
+        it 'creates a new future keypair' do
+          expect { described_class.keyset }.to change { described_class.count }.by(1)
+        end
+
+        it 'does not create a new future keypair on subsequent calls' do
+          described_class.keyset
+          expect { described_class.keyset }.to_not change { described_class.count }
+        end
+      end
     end
 
     describe '.cached_keyset' do

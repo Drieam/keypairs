@@ -86,7 +86,7 @@ class Keypair < ActiveRecord::Base
   #
   # @see https://www.imsglobal.org/spec/security/v1p0/#h_key-set-url
   def self.keyset
-    valid_keys = valid.order(expires_at: :asc).to_a
+    valid_keys = valid.order(not_before: :asc).to_a
     # If we don't have any keys or if we don't have a future key (i.e. the last key is the current key)
     while valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
       # There is an automatic fallback to Time.zone.now if not_before is not set
