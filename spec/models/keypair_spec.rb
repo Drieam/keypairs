@@ -219,21 +219,36 @@ RSpec.describe Keypair, type: :model do
       end
 
       context 'without keypairs' do
-        let(:created_keypair) { described_class.unscoped.last }
+        let(:created_current_keypair) { described_class.unscoped.second_to_last }
+        let(:created_future_keypair) { described_class.unscoped.last }
 
-        it 'creates a new keypair' do
-          expect { described_class.keyset }.to change { described_class.count }.by(1)
+        let(:expected) do
+          [
+            created_current_keypair.public_jwk_export,
+            created_future_keypair.public_jwk_export
+          ]
         end
 
-        it 'creates the new keypair for the correct time', timecop: :freeze do
+        it 'creates a new keypair' do
+          expect { described_class.keyset }.to change { described_class.count }.by(2)
+        end
+
+        it 'creates the new current keypair for the correct time', timecop: :freeze do
           described_class.keyset
-          expect(created_keypair.not_before).to eq Time.zone.now.floor(6)
-          expect(created_keypair.not_after).to eq 1.month.from_now.floor(6)
-          expect(created_keypair.expires_at).to eq 2.months.from_now.floor(6)
+          expect(created_current_keypair.not_before).to eq Time.zone.now.floor(6)
+          expect(created_current_keypair.not_after).to eq 1.month.from_now.floor(6)
+          expect(created_current_keypair.expires_at).to eq 2.months.from_now.floor(6)
+        end
+
+        it 'creates the new future keypair for the correct time', timecop: :freeze do
+          described_class.keyset
+          expect(created_future_keypair.not_before).to eq 1.month.from_now.floor(6)
+          expect(created_future_keypair.not_after).to eq 2.months.from_now.floor(6)
+          expect(created_future_keypair.expires_at).to eq 3.months.from_now.floor(6)
         end
 
         it 'contains the public_jwk_export of the newly created keypair' do
-          expect(subject[:keys]).to eq([created_keypair.public_jwk_export])
+          expect(subject[:keys]).to eq(expected)
         end
       end
     end
