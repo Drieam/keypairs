@@ -88,7 +88,7 @@ class Keypair < ActiveRecord::Base
   def self.keyset
     valid_keys = valid.order(expires_at: :asc).to_a
     # If we don't have any keys or if we don't have a future key (i.e. the last key is the current key)
-    if valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
+    while valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
       # There is an automatic fallback to Time.zone.now if not_before is not set
       valid_keys << create!(not_before: valid_keys.last&.not_after)
     end
