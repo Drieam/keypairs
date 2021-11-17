@@ -28,3 +28,7 @@ Metrics/BlockLength:
   Exclude:
     - 'spec/**/*.rb' # Specs just have large blocks
     - '*.gemspec'    # Is just one block
+
+# We publish the gem by using a GitHub Workflow so MFA is not used
+Gemspec/RequireMFA:
+  Enabled: false

@@ -5,8 +5,9 @@ RSpec.describe Keypair, type: :model do
     it { is_expected.to have_db_column(:id).of_type(:integer).with_options(null: false) }
     it { is_expected.to have_db_column(:jwk_kid).of_type(:string).with_options(null: false) }
     it { is_expected.to have_db_column(:_keypair_ciphertext).of_type(:text).with_options(null: false) }
-    it { is_expected.to have_db_column(:not_before).of_type(:datetime).with_options(null: true, precision: 6) }
-    it { is_expected.to have_db_column(:expires_at).of_type(:datetime).with_options(null: true, precision: 6) }
+    it { is_expected.to have_db_column(:not_before).of_type(:datetime).with_options(null: false, precision: 6) }
+    it { is_expected.to have_db_column(:not_after).of_type(:datetime).with_options(null: false, precision: 6) }
+    it { is_expected.to have_db_column(:expires_at).of_type(:datetime).with_options(null: false, precision: 6) }
     it { is_expected.to have_db_column(:created_at).of_type(:datetime).with_options(null: false, precision: 6) }
     it { is_expected.to have_db_column(:updated_at).of_type(:datetime).with_options(null: false, precision: 6) }
     it { is_expected.to have_db_index(:created_at) }
