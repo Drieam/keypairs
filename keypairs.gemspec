@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   MESSAGE
   spec.description = spec.summary
   spec.license     = 'MIT'
-  spec.required_ruby_version = Gem::Requirement.new('>= 2.6.0')
+  spec.required_ruby_version = Gem::Requirement.new('>= 2.7.0')
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = 'https://github.com/Drieam/keypairs'
@@ -29,6 +29,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'jwt', '~> 2.1'                              # Working with JSON Web Tokens
   spec.add_dependency 'lockbox', '~> 0.4'                          # Encrypt and decrypt attributes
 
+  spec.add_development_dependency 'appraisal'                      # Test against multiple gem versions
   spec.add_development_dependency 'brakeman'                       # Static analysis security vulnerability scanner
   spec.add_development_dependency 'combustion'                     # Test rails engines
   spec.add_development_dependency 'database_cleaner-active_record' # Ensure clean state for testing
