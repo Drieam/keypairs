@@ -38,7 +38,7 @@ class Keypair < ActiveRecord::Base
   ALGORITHM = 'RS256'
   ROTATION_INTERVAL = 1.month
 
-  encrypts :_keypair
+  lockbox_encrypts :_keypair
 
   validates :_keypair, presence: true
   validates :jwk_kid, presence: true

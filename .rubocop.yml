@@ -3,9 +3,10 @@ require:
   - rubocop-rails # Rails-specific analysis
 
 AllCops:
-  TargetRubyVersion: 2.6
+  TargetRubyVersion: 2.7
   NewCops: enable
   Exclude:
+    - 'gemfiles/*'
     - 'tmp/**/*'
     - 'vendor/**/*'
 

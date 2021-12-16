@@ -12,6 +12,8 @@ jobs:
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0
 
       - name: Setup GitHub Package Registry credentials
         run: |
@@ -38,6 +40,8 @@ jobs:
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0
 
       - name: Replace version by tag value
         run: sed -i "s/'[0-9]\.[0-9]\..*'/'${GITHUB_REF##*/}'/" lib/keypairs/version.rb

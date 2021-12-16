@@ -34,6 +34,10 @@ GEM
       minitest (>= 5.1)
       tzinfo (~> 2.0)
       zeitwerk (~> 2.3)
+    appraisal (2.4.1)
+      bundler
+      rake
+      thor (>= 0.14.0)
     ast (2.4.2)
     brakeman (5.1.2)
     builder (3.2.4)
@@ -136,6 +140,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  appraisal
   brakeman
   combustion
   database_cleaner-active_record
@@ -150,4 +155,4 @@ DEPENDENCIES
   timecop
 
 BUNDLED WITH
-   2.1.4
+   2.2.32
