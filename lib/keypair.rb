@@ -2,6 +2,7 @@
 
 require 'lockbox'
 require 'jwt'
+require 'with_advisory_lock'
 
 # This class contains functionality needed for signing messages
 # and publishing JWK[s].
@@ -34,7 +35,7 @@ require 'jwt'
 # @attr [Time] not_before The time before which no payloads may be signed using the keypair.
 # @attr [Time] not_after The time after which no payloads may be signed using the keypair.
 # @attr [Time] expires_at The time after which the keypair may not be used for signature validation.
-class Keypair < ActiveRecord::Base
+class Keypair < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   ALGORITHM = 'RS256'
   ROTATION_INTERVAL = 1.month
 
@@ -55,12 +56,16 @@ class Keypair < ActiveRecord::Base
   #   Non-expired keypairs are considered valid and can be used to validate signatures and export public jwks.
   scope :valid, -> { where(arel_table[:expires_at].gt(Time.zone.now)) }
 
+  # @param create [Boolean] if true, will create a new current keypair if one doesn't exist
   # @return [Keypair] the keypair used to sign messages and autorotates if it has expired.
-  def self.current
-    order(not_before: :asc)
-      .where(arel_table[:not_before].lteq(Time.zone.now))
-      .where(arel_table[:not_after].gteq(Time.zone.now))
-      .last || create!
+  def self.current(create: true)
+    current = order(not_before: :asc)
+              .where(arel_table[:not_before].lteq(Time.zone.now))
+              .where(arel_table[:not_after].gteq(Time.zone.now))
+              .last
+    return current unless current.nil?
+
+    create_with_lock! if create
   end
 
   # The JWK Set of our valid keypairs.
@@ -87,11 +92,8 @@ class Keypair < ActiveRecord::Base
   # @see https://www.imsglobal.org/spec/security/v1p0/#h_key-set-url
   def self.keyset
     valid_keys = valid.order(not_before: :asc).to_a
-    # If we don't have any keys or if we don't have a future key (i.e. the last key is the current key)
-    while valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
-      # There is an automatic fallback to Time.zone.now if not_before is not set
-      valid_keys << create!(not_before: valid_keys.last&.not_after)
-    end
+
+    valid_keys = rotate_keys_with_lock! if valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
 
     {
       keys: valid_keys.map(&:public_jwk_export)
@@ -228,5 +230,34 @@ class Keypair < ActiveRecord::Base
     return if expires_at > not_after
 
     errors.add(:expires_at, 'must be after not after')
+  end
+
+  class << self
+    private
+
+    LOCK_NAME = 'keypairs:rotate'
+
+    def rotate_keys_with_lock!
+      with_advisory_lock(LOCK_NAME) do
+        valid_keys = valid.order(not_before: :asc).to_a
+
+        # If we don't have any keys or if we don't have a future key (i.e. the last key is the current key)
+        while valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
+          # There is an automatic fallback to Time.zone.now if not_before is not set
+          valid_keys << create!(not_before: valid_keys.last&.not_after)
+        end
+
+        valid_keys
+      end
+    end
+
+    def create_with_lock!
+      with_advisory_lock(LOCK_NAME) do
+        current = current(create: false)
+        next current if current
+
+        create!
+      end
+    end
   end
 end

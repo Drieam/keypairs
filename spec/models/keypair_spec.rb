@@ -138,6 +138,17 @@ RSpec.describe Keypair, type: :model do
         it 'returns an instance' do
           expect(described_class.current).to be_a described_class
         end
+
+        it 'only creates 1 keypair with multiple threads' do
+          expect do
+            threads = Array.new(3).map do |_i|
+              Thread.new do
+                expect(described_class.current).to be_a Keypair
+              end
+            end
+            threads.each(&:join)
+          end.to change(described_class, :count).by(1)
+        end
       end
 
       context 'with valid keypairs' do
@@ -192,6 +203,17 @@ RSpec.describe Keypair, type: :model do
 
         it 'contains the public_jwk_export of only the valid keypairs' do
           expect(subject[:keys]).to eq(expected)
+        end
+
+        it 'only creates 1 keypair with multiple threads' do
+          expect do
+            threads = Array.new(3).map do |_i|
+              Thread.new do
+                expect(described_class.keyset[:keys].length).to eq 3
+              end
+            end
+            threads.each(&:join)
+          end.to change(described_class, :count).by(1)
         end
       end
 
