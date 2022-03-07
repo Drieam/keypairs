@@ -28,6 +28,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'activerecord', '>= 6.0'                     # Depend on activerecord as ORM
   spec.add_dependency 'jwt', '~> 2.1'                              # Working with JSON Web Tokens
   spec.add_dependency 'lockbox', '~> 0.4'                          # Encrypt and decrypt attributes
+  spec.add_dependency 'with_advisory_lock', '~> 4.6'               # Advisory database-level locks
 
   spec.add_development_dependency 'appraisal'                      # Test against multiple gem versions
   spec.add_development_dependency 'brakeman'                       # Static analysis security vulnerability scanner
