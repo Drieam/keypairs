@@ -4,7 +4,7 @@ PATH
     keypairs (2.0.0.develop)
       actionpack (>= 6.0)
       activerecord (>= 6.0)
-      jwt (~> 2.1)
+      jwt (~> 2.5)
       lockbox (~> 0.4)
 
 GEM
@@ -55,7 +55,7 @@ GEM
     erubi (1.10.0)
     i18n (1.8.11)
       concurrent-ruby (~> 1.0)
-    jwt (2.3.0)
+    jwt (2.5.0)
     lockbox (0.6.6)
     loofah (2.12.0)
       crass (~> 1.0.2)
