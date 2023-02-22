@@ -17,3 +17,4 @@ tmp/
 
 # Appraisals gemfile locks
 gemfiles/*.gemfile.lock
+Gemfile.lock
