@@ -145,11 +145,7 @@ class Keypair < ActiveRecord::Base
 
       # Expiration time on or after which the tool MUST NOT accept the ID Token for
       # processing (epoch). This is mostly used to allow some clock skew.
-      exp: Time.now.to_i + 5.minutes.to_i,
-
-      # String value used to associate a tool session with an ID Token, and to mitigate replay
-      # attacks. The nonce value is a case-sensitive string.
-      nonce: SecureRandom.uuid
+      exp: Time.now.to_i + 5.minutes.to_i
     )
 
     # Add additional info into the headers

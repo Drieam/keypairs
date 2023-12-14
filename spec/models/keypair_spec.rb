@@ -312,17 +312,13 @@ RSpec.describe Keypair, type: :model do
           expect(decoded).to include payload
         end
         it 'adds security payloads' do
-          expect(decoded.keys).to match_array %i[hex nested iat exp nonce]
+          expect(decoded.keys).to match_array %i[hex nested iat exp]
         end
         it 'sets iat to now', timecop: :freeze do
           expect(decoded[:iat]).to eq Time.current.to_i
         end
         it 'sets exp to 5 minutes from now', timecop: :freeze do
           expect(decoded[:exp]).to eq 5.minutes.from_now.to_i
-        end
-        it 'sets a generated nonce' do
-          allow(SecureRandom).to receive(:uuid).and_return 'my-nonce'
-          expect(decoded[:nonce]).to eq 'my-nonce'
         end
         it 'is encoded with the keypair and correct algorithm' do
           expect do
@@ -340,12 +336,10 @@ RSpec.describe Keypair, type: :model do
         let(:payload) { { foo: 'bar', exp: 1.minute.ago.to_i } }
 
         it 'returns a JWT with the correct payload' do
-          allow(SecureRandom).to receive(:uuid).and_return 'my-nonce'
           expect(decoded).to eq(
             foo: 'bar',
             iat: Time.current.to_i,
-            exp: 1.minute.ago.to_i,
-            nonce: 'my-nonce'
+            exp: 1.minute.ago.to_i
           )
         end
         it 'is cannot be decoded' do
