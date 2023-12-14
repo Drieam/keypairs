@@ -312,6 +312,71 @@ RSpec.describe Keypair, type: :model do
           expect(decoded).to include payload
         end
         it 'adds security payloads' do
+          expect(decoded.keys).to match_array %i[hex nested iat exp nonce]
+        end
+        it 'sets iat to now', timecop: :freeze do
+          expect(decoded[:iat]).to eq Time.current.to_i
+        end
+        it 'sets exp to 5 minutes from now', timecop: :freeze do
+          expect(decoded[:exp]).to eq 5.minutes.from_now.to_i
+        end
+        it 'sets a generated nonce' do
+          allow(SecureRandom).to receive(:uuid).and_return 'my-nonce'
+          expect(decoded[:nonce]).to eq 'my-nonce'
+        end
+        it 'is encoded with the keypair and correct algorithm' do
+          expect do
+            JWT.decode(subject, keypair.public_key, true, algorithm: described_class::ALGORITHM)
+          end.to_not raise_error
+        end
+        it 'sets the kid in the headers' do
+          expect(headers).to eq(
+            alg: described_class::ALGORITHM,
+            kid: keypair.jwk_kid
+          )
+        end
+      end
+      context 'with security overrides' do
+        let(:payload) { { foo: 'bar', exp: 1.minute.ago.to_i } }
+
+        it 'returns a JWT with the correct payload' do
+          allow(SecureRandom).to receive(:uuid).and_return 'my-nonce'
+          expect(decoded).to eq(
+            foo: 'bar',
+            iat: Time.current.to_i,
+            exp: 1.minute.ago.to_i,
+            nonce: 'my-nonce'
+          )
+        end
+        it 'is cannot be decoded' do
+          expect do
+            JWT.decode(subject, keypair.public_key, true, algorithm: described_class::ALGORITHM)
+          end.to raise_error JWT::ExpiredSignature
+        end
+      end
+    end
+
+    describe '.jwt_encode_without_nonce' do
+      let(:payload) { { hex: SecureRandom.hex, nested: { hex: SecureRandom.hex } } }
+      let(:keypair) { described_class.new }
+      subject { keypair.jwt_encode(payload, {}, nonce: false) }
+      # Decode the JWT but don't verify
+      let(:decoded) { JWT.decode(subject, nil, false).first.deep_symbolize_keys }
+      # Decode the JWT but don't verify
+      let(:headers) { JWT.decode(subject, nil, false).second.deep_symbolize_keys }
+
+      context 'with string payload' do
+        let(:payload) { SecureRandom.hex }
+        it 'raises an error' do
+          expect { subject }.to raise_error NoMethodError
+        end
+      end
+      context 'with hash payload' do
+        let(:payload) { { hex: SecureRandom.hex, nested: { hex: SecureRandom.hex } } }
+        it 'returns a JWT with the correct payload' do
+          expect(decoded).to include payload
+        end
+        it 'adds security payloads' do
           expect(decoded.keys).to match_array %i[hex nested iat exp]
         end
         it 'sets iat to now', timecop: :freeze do

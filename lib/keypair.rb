@@ -114,6 +114,14 @@ class Keypair < ActiveRecord::Base
     current.jwt_encode(payload)
   end
 
+  # Encodes the payload with the current keypair.
+  # It forewards the call to the instance method {Keypair#jwt_encode}.
+  # @return [String] Encoded JWT token with security credentials.
+  # @param payload [Hash] Hash which should be encoded.
+  def self.jwt_encode_without_nonce(payload)
+    current.jwt_encode_without_nonce(payload, {}, nonce: false)
+  end
+
   # Decodes the payload and verifies the signature against the current valid keypairs.
   # @param id_token [String] A JWT that should be decoded.
   # @param options [Hash] options for decoding, passed to {JWT::Decode}.
@@ -137,16 +145,9 @@ class Keypair < ActiveRecord::Base
   # It automatically sets the +kid+ in the header.
   # @param payload [Hash] you have to provide a hash since the security attributes have to be added.
   # @param headers [Hash] you can optionally add additional headers to the JWT.
-  def jwt_encode(payload, headers = {})
+  def jwt_encode(payload, headers = {}, nonce: true)
     # Add security claims to payload
-    payload.reverse_merge!(
-      # Time at which the Issuer generated the JWT (epoch).
-      iat: Time.now.to_i,
-
-      # Expiration time on or after which the tool MUST NOT accept the ID Token for
-      # processing (epoch). This is mostly used to allow some clock skew.
-      exp: Time.now.to_i + 5.minutes.to_i
-    )
+    payload = secure_payload(payload, nonce: nonce)
 
     # Add additional info into the headers
     headers.reverse_merge!(
@@ -224,5 +225,24 @@ class Keypair < ActiveRecord::Base
     return if expires_at > not_after
 
     errors.add(:expires_at, 'must be after not after')
+  end
+
+  def secure_payload(payload, nonce: true)
+    secure_payload = {
+      # Time at which the Issuer generated the JWT (epoch).
+      iat: Time.now.to_i,
+
+      # Expiration time on or after which the tool MUST NOT accept the ID Token for
+      # processing (epoch). This is mostly used to allow some clock skew.
+      exp: Time.now.to_i + 5.minutes.to_i
+    }
+
+    if nonce
+      # String value used to associate a tool session with an ID Token, and to mitigate replay
+      # attacks. The nonce value is a case-sensitive string.
+      secure_payload[:nonce] = SecureRandom.uuid
+    end
+
+    payload.reverse_merge!(secure_payload)
   end
 end
