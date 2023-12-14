@@ -119,7 +119,7 @@ class Keypair < ActiveRecord::Base
   # @return [String] Encoded JWT token with security credentials.
   # @param payload [Hash] Hash which should be encoded.
   def self.jwt_encode_without_nonce(payload)
-    current.jwt_encode_without_nonce(payload, {}, nonce: false)
+    current.jwt_encode(payload, {}, nonce: false)
   end
 
   # Decodes the payload and verifies the signature against the current valid keypairs.
