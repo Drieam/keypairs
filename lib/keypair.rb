@@ -34,7 +34,7 @@ require 'jwt'
 # @attr [Time] not_before The time before which no payloads may be signed using the keypair.
 # @attr [Time] not_after The time after which no payloads may be signed using the keypair.
 # @attr [Time] expires_at The time after which the keypair may not be used for signature validation.
-class Keypair < ActiveRecord::Base
+class Keypair < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   ALGORITHM = 'RS256'
   ROTATION_INTERVAL = 1.month
 
@@ -133,11 +133,25 @@ class Keypair < ActiveRecord::Base
       # Change the default algorithm to match the encoding algorithm
       algorithm: ALGORITHM,
       # Load our own keyset as valid keys
-      jwks: keyset,
+      jwks: jwk_loader_cached,
       # If the `sub` is provided, validate that it matches the payload `sub`
       verify_sub: true
     )
     JWT.decode(id_token, nil, true, options).first.with_indifferent_access
+  end
+
+  # options[:invalidate] will be `true` if a matching `kid` was not found
+  # https://github.com/jwt/ruby-jwt/blob/master/lib/jwt/jwk/key_finder.rb#L31
+  def self.jwk_loader_cached
+    lambda do |options|
+      cached_jwks(force: options[:invalidate]) || {}
+    end
+  end
+
+  def self.cached_jwks(force: false)
+    Rails.cache.fetch('keypairs/Keypair/jwks', force: force, skip_nil: true) do
+      keyset
+    end
   end
 
   # JWT encodes the payload with this keypair.

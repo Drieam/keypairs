@@ -470,6 +470,36 @@ RSpec.describe Keypair, type: :model do
           expect { subject }.to raise_error JWT::DecodeError
         end
       end
+
+      context 'should update cache if kid is not regonized' do
+        let(:other_payload) { { uuid: SecureRandom.uuid } }
+        let(:other_id_token) { other_keypair.jwt_encode(other_payload) }
+        let(:other_keypair) { described_class.create! }
+        let(:keypair) { described_class.current }
+        subject { described_class.jwt_decode(other_id_token).deep_symbolize_keys }
+
+        before do
+          old_keypair = described_class.create!
+          token = old_keypair.jwt_encode({ uuid: SecureRandom.uuid })
+          described_class.jwt_decode(token)
+        end
+
+        it { expect(subject[:uuid]).to eq other_payload[:uuid] }
+      end
+
+      context 'with query count' do
+        let!(:keypair) { described_class.current }
+
+        context 'without cache' do
+          it { expect { subject }.not_to exceed_query_limit(4) }
+        end
+
+        context 'with cache' do
+          before { subject }
+
+          it { expect { subject }.not_to exceed_query_limit(0) }
+        end
+      end
     end
 
     describe '#public_jwk_export' do

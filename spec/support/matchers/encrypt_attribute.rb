@@ -6,9 +6,9 @@ RSpec::Matchers.define :encrypt_attribute do |attribute|
   match do |model|
     # Correct responds to methods
     model.respond_to?(attribute) &&
-      model.respond_to?("#{attribute}=") &&
+      model.respond_to?(:"#{attribute}=") &&
       model.respond_to?(database_column_name) &&
-      model.respond_to?("#{database_column_name}=") &&
+      model.respond_to?(:"#{database_column_name}=") &&
       # Correct database columns
       model.class.column_names.exclude?(attribute.to_s) &&
       model.class.column_names.include?(database_column_name)
