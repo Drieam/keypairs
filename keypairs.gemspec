@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'actionpack', '>= 6.0', '< 8'                # Depend on actionpack to share public keys
   spec.add_dependency 'activerecord', '>= 6.0', '< 8'              # Depend on activerecord as ORM
   spec.add_dependency 'jwt', '~> 2.5'                              # Working with JSON Web Tokens
-  spec.add_dependency 'lockbox', '~> 1.3'                          # Encrypt and decrypt attributes
+  spec.add_dependency 'lockbox', '>= 1.3', '< 3.0'                 # Encrypt and decrypt attributes
 
   spec.add_development_dependency 'appraisal'                      # Test against multiple gem versions
   spec.add_development_dependency 'brakeman'                       # Static analysis security vulnerability scanner
