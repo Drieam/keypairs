@@ -15,7 +15,7 @@ Combustion.initialize! :active_record, :action_controller
 require 'rspec/rails'
 
 # Load support files
-Dir[File.join(File.dirname(__FILE__), 'support', '**', '*.rb')].sort.each { |f| require f }
+Dir[File.join(File.dirname(__FILE__), 'support', '**', '*.rb')].each { |f| require f }
 
 require 'keypairs'
 
