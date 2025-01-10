@@ -17,15 +17,16 @@ Gem::Specification.new do |spec|
   MESSAGE
   spec.description = spec.summary
   spec.license     = 'MIT'
-  spec.required_ruby_version = Gem::Requirement.new('>= 2.7.0')
+
+  spec.required_ruby_version = '>= 3.2'
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = 'https://github.com/Drieam/keypairs'
 
   spec.files = Dir['{app,db,lib}/**/*', 'LICENSE', 'README.md']
 
-  spec.add_dependency 'actionpack', '>= 6.0', '< 8'                # Depend on actionpack to share public keys
-  spec.add_dependency 'activerecord', '>= 6.0', '< 8'              # Depend on activerecord as ORM
+  spec.add_dependency 'actionpack', '>= 7.1', '< 9'                # Depend on actionpack to share public keys
+  spec.add_dependency 'activerecord', '>= 7.1', '< 9'              # Depend on activerecord as ORM
   spec.add_dependency 'jwt', '~> 2.5'                              # Working with JSON Web Tokens
   spec.add_dependency 'lockbox', '>= 1.3', '< 3.0'                 # Encrypt and decrypt attributes
 
@@ -39,6 +40,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rubocop-performance'            # Linter for Performance optimization analysis
   spec.add_development_dependency 'rubocop-rails'                  # Linter for Rails-specific analysis
   spec.add_development_dependency 'shoulda-matchers'               # RSpec matchers
-  spec.add_development_dependency 'sqlite3', '~> 1.4'              # Database adapter
+  spec.add_development_dependency 'sqlite3'                        # Database adapter
   spec.add_development_dependency 'timecop'                        # Freeze time to test time-dependent code
 end
