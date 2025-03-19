@@ -1,7 +1,7 @@
 name: CI
 on: [push]
 jobs:
-  reviewdog:
+  rubocop:
     runs-on: ubuntu-latest
 
     steps:
@@ -13,13 +13,23 @@ jobs:
           ruby-version: 3.3
           bundler-cache: true
 
-      - name: Setup reviewdog
-        uses: reviewdog/action-setup@v1
+      - name: Run rubocop
+        run: bundle exec rubocop
 
-      - name: Run reviewdog
-        run: reviewdog -reporter=github-check
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  brakeman:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+          bundler-cache: true
+
+      - name: Run brakeman
+        run: bundle exec brakeman --quiet --format tabs --force-scan
 
   rspec:
     strategy:
