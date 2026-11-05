@@ -1,5 +1,11 @@
 name: CI
-on: [push]
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
 jobs:
   rubocop:
     runs-on: ubuntu-latest
@@ -10,11 +16,11 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.3
+          ruby-version: '3.4'
           bundler-cache: true
 
       - name: Run rubocop
-        run: bundle exec rubocop
+        run: bundle exec rubocop --format github
 
   brakeman:
     runs-on: ubuntu-latest
@@ -25,11 +31,11 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.3
+          ruby-version: '3.4'
           bundler-cache: true
 
       - name: Run brakeman
-        run: bundle exec brakeman --quiet --format tabs --force-scan
+        run: bundle exec brakeman --quiet --format github --force-scan
 
   rspec:
     strategy:
