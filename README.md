@@ -63,7 +63,10 @@ get :jwks, to: Keypairs::PublicKeysController.action(:index)
 ```
 
 ## Releasing new version
-Publishing a new version is handled by the publish workflow. This workflow publishes a GitHub release to rubygems and GitHub package registry with the version defined in the release.
+Publishing a new version is handled by [release-please](https://github.com/googleapis/release-please). Whenever a PR is
+merged, release-please will create/update a versioning PR. Once this versioning PR is approved and merged, a new version
+of the gem will automatically be published to RubyGems and the GitHub package registry. The changelog will be updated
+automatically.
 
 ## Contributing
 Bug reports and pull requests are welcome on GitHub at https://github.com/Drieam/keypairs.
