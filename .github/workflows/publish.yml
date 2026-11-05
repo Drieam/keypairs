@@ -11,8 +11,11 @@ permissions:
   pull-requests: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      sha: ${{ steps.release.outputs.sha }}
     steps:
       - uses: googleapis/release-please-action@v5.0.0
         id: release
@@ -20,23 +23,24 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # Separate jobs so a failed upload can be retried with "Re-run failed jobs" without publishing twice
+  publish-github:
+    needs: release
+    if: ${{ needs.release.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout code
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
         uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.sha }}
 
       - name: Setup Ruby
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
         uses: ruby/setup-ruby@v1.336.0
         with:
           ruby-version: '3.4'
-          bundler-cache: true
 
-      - name: Build and publish gem to registry
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
+      - name: Build and publish gem to GitHub Package Registry
         run: |
-          gem install bundler
-          bundle config unset deployment
-          bundle install
           mkdir -p $HOME/.gem
           touch $HOME/.gem/credentials
           chmod 0600 $HOME/.gem/credentials
@@ -46,8 +50,24 @@ jobs:
         env:
           OWNER: Drieam
 
-      - name: Publish gem to RubyGems
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
-        run: gem push --verbose *.gem
+  publish-rubygems:
+    needs: release
+    if: ${{ needs.release.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1.336.0
+        with:
+          ruby-version: '3.4'
+
+      - name: Build and publish gem to RubyGems
+        run: |
+          gem build --verbose *.gemspec
+          gem push --verbose *.gem
         env:
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_AUTH_TOKEN }}
