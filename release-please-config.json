@@ -1,0 +1,9 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "ruby",
+      "version-file": "lib/keypairs/version.rb",
+      "include-v-in-tag": false
+    }
+  }
+}
