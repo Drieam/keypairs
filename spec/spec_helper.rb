@@ -7,10 +7,10 @@ require 'combustion'
 
 Bundler.require(*Rails.groups)
 
-Rails.application.config.cache_store = :null_store
-
 # Load the parts from rails we need with combustion
-Combustion.initialize! :active_record, :action_controller
+Combustion.initialize! :active_record, :action_controller do
+  config.cache_store = :null_store
+end
 
 require 'rspec/rails'
 
