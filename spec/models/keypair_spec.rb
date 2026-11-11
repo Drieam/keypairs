@@ -276,6 +276,48 @@ RSpec.describe Keypair, type: :model do
       end
     end
 
+    describe '.cached_jwks' do
+      let(:cache) { ActiveSupport::Cache::MemoryStore.new }
+      let(:entry) { cache.send(:read_entry, 'keypairs/Keypair/jwks/v2') }
+      before { allow(Rails).to receive(:cache).and_return(cache) }
+
+      it 'returns the keyset' do
+        expect(described_class.cached_jwks).to eq described_class.keyset
+      end
+
+      it 'expires the cache after 5 minutes', timecop: :freeze do
+        described_class.cached_jwks
+        expect(entry.expires_at).to eq 5.minutes.from_now.to_f
+      end
+
+      it 'expires the cache when the first keypair expires', timecop: :freeze do
+        described_class.create!(not_before: 2.months.ago, not_after: 1.month.ago, expires_at: 1.minute.from_now)
+        described_class.cached_jwks
+        expect(entry.expires_at).to eq 1.minute.from_now.to_f
+      end
+
+      it 'does not read the entry of earlier versions, which never expires' do
+        cache.write('keypairs/Keypair/jwks', { keys: [{ kid: 'stale' }] })
+        expect(described_class.cached_jwks[:keys].pluck(:kid)).to_not include 'stale'
+      end
+
+      context 'with a keypair that expires after the keyset was cached' do
+        let!(:keypair) do
+          described_class.create!(not_before: 2.months.ago, not_after: 1.month.ago, expires_at: 10.minutes.from_now)
+        end
+        let(:id_token) { keypair.jwt_encode({ uuid: SecureRandom.uuid }) }
+
+        # Cache the keyset while the keypair is still valid
+        before { described_class.jwt_decode(id_token) }
+
+        it 'no longer validates its signatures' do
+          Timecop.travel(11.minutes.from_now) do
+            expect { described_class.jwt_decode(id_token, verify_expiration: false) }.to raise_error JWT::DecodeError
+          end
+        end
+      end
+    end
+
     describe '.jwt_encode' do
       let(:payload) { { uuid: SecureRandom.uuid } }
       subject { described_class.jwt_encode(payload) }

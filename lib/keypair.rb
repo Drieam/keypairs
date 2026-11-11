@@ -37,6 +37,8 @@ require 'jwt'
 class Keypair < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   ALGORITHM = 'RS256'
   ROTATION_INTERVAL = 1.month
+  # Maximum lifetime of the cached JWK Set used to validate signatures, see {.cached_jwks}.
+  JWKS_CACHE_EXPIRES_IN = 5.minutes
 
   has_encrypted :_keypair
 
@@ -86,17 +88,28 @@ class Keypair < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   #
   # @see https://www.imsglobal.org/spec/security/v1p0/#h_key-set-url
   def self.keyset
+    jwk_set(valid_keypairs)
+  end
+
+  # @return [Array<Keypair>] the valid keypairs, ordered by not_before, including a future keypair that is created
+  #   if it does not exist yet.
+  def self.valid_keypairs
     valid_keys = valid.order(not_before: :asc).to_a
     # If we don't have any keys or if we don't have a future key (i.e. the last key is the current key)
     while valid_keys.last.nil? || valid_keys.last.not_before <= Time.zone.now
       # There is an automatic fallback to Time.zone.now if not_before is not set
       valid_keys << create!(not_before: valid_keys.last&.not_after)
     end
+    valid_keys
+  end
+  private_class_method :valid_keypairs
 
+  def self.jwk_set(keypairs)
     {
-      keys: valid_keys.map(&:public_jwk_export)
+      keys: keypairs.map(&:public_jwk_export)
     }
   end
+  private_class_method :jwk_set
 
   # @return [Hash] a cached version of the keyset
   # @see #keyset
@@ -148,9 +161,17 @@ class Keypair < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
     end
   end
 
+  # The JWK Set used to validate signatures in {.jwt_decode}.
+  #
+  # The cache entry expires when the first keypair expires, and at most after {JWKS_CACHE_EXPIRES_IN}, so expired and
+  # deleted keypairs stop validating signatures.
+  # @param force [Boolean] whether to refresh the cache, see {.jwk_loader_cached}
+  # @return [Hash] see {.keyset}
   def self.cached_jwks(force: false)
-    Rails.cache.fetch('keypairs/Keypair/jwks', force: force, skip_nil: true) do
-      keyset
+    Rails.cache.fetch('keypairs/Keypair/jwks/v2', force: force, skip_nil: true) do |_key, options|
+      keypairs = valid_keypairs
+      options.expires_in = [JWKS_CACHE_EXPIRES_IN, keypairs.map(&:expires_at).min - Time.zone.now].min
+      jwk_set(keypairs)
     end
   end
 
